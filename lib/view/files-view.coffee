@@ -1,5 +1,5 @@
-{$, $$, SelectListView} = require 'atom-space-pen-views'
-{CompositeDisposable} = require 'atom'
+{$, $$, View} = require 'atom-space-pen-views'
+{CompositeDisposable, Emitter} = require 'atom'
 LocalFile = require '../model/local-file'
 
 Dialog = require './dialog'
@@ -15,9 +15,25 @@ mkdirp = require 'mkdirp'
 moment = require 'moment'
 
 module.exports =
-  class FilesView extends SelectListView
+  class FilesView extends View
+
+    @content: ->
+      @div class: 'remote-edit-tree-view remote-edit-resizer tool-panel', 'data-show-on-right-side': false, =>
+        @div class: 'remote-edit-wrap', =>
+          @div class: 'remote-edit-info', click: 'clickInfo', =>
+            @p class: 'remote-edit-server', =>
+              @span class: 'remote-edit-server-type inline-block', 'FTP:'
+              @span class: 'remote-edit-server-alias inline-block highlight', outlet: 'server_alias', 'unknown'
+            @p class: 'remote-edit-folder text-bold', =>
+              @span 'Folder: '
+              @span outlet: 'server_folder', 'unknown'
+
+          @div class: 'remote-edit-scroller', outlet: 'scroller', =>
+            @ol class: 'tree-view full-menu list-tree has-collapsable-children focusable-panel', tabindex: -1, outlet: 'list'
+          @div class: 'remote-edit-message', outlet: 'message'
+        @div class: 'remote-edit-resize-handle', outlet: 'resizeHandle'
+
     initialize: (@host) ->
-      super
       @addClass('filesview')
 
       @disposables = new CompositeDisposable
@@ -91,18 +107,14 @@ module.exports =
         @show()
 
     show: ->
-      @panel?.destroy()
-      @panel = atom.workspace.addModalPanel(item: this)
-      @panel.show()
-      @storeFocusedElement()
-      @focusFilterEditor()
+      @panel ?= atom.workspace.addLeftPanel(item: this, visible: true)
 
     hide: ->
       @panel?.hide()
 
     viewForItem: (item) ->
       $$ ->
-        @li class: 'two-lines', =>
+        @li class: 'list-item list-selectable-item two-lines', =>
           if item.isFile
             @div class: 'primary-line icon icon-file-text', item.name
           else if item.isDir
@@ -110,14 +122,15 @@ module.exports =
           else if item.isLink
             @div class: 'primary-line icon icon-file-symlink-file', item.name
 
-          @div class: 'secondary-line no-icon text-subtle', "Size: #{item.size}, Mtime: #{item.lastModified}, Permissions: #{item.permissions}"
-
+          @div class: 'secondary-line no-icon text-subtle', "S: #{item.size}, M: #{item.lastModified}, P: #{item.permissions}"
 
 
     populate: (callback) ->
       async.waterfall([
         (callback) =>
           @setLoading("Loading...")
+          @server_alias.html(if @host.alias then @host.alias else @host.hostname)
+          @server_folder.html(@path)
           @host.getFilesMetadata(@path, callback)
         (items, callback) =>
           items = _.sortBy(items, 'isFile') if atom.config.get 'remote-edit.foldersOnTop'
@@ -140,6 +153,7 @@ module.exports =
 
     updatePath: (next) =>
       @path = @getNewPath(next)
+      @server_folder.html(@path)
 
     getDefaultSaveDirForHostAndFile: (file, callback) ->
       async.waterfall([
@@ -168,7 +182,7 @@ module.exports =
       )
 
     openFile: (file) =>
-      @setLoading("Downloading file...")
+      #@setLoading("Downloading file...")
       dtime = moment().format("HH:mm:ss DD/MM/YY")
       async.waterfall([
         (callback) =>
@@ -187,7 +201,6 @@ module.exports =
           atom.workspace.open(uri, split: 'left')
 
           @host.close()
-          @cancel()
       )
 
     openDirectory: (dir) =>
@@ -198,7 +211,6 @@ module.exports =
       if item.isFile
         @openFile(item)
       else if item.isDir
-        @filterEditorView.setText('')
         @setItems()
         @updatePath(item.name)
         @host.lastOpenDirectory = item.path
@@ -216,10 +228,67 @@ module.exports =
       else
         @setError("Selected item is neither a file, directory or link!")
 
+    clickInfo: (event, element) ->
+      #console.log event
+      #console.log element
+
+    resizeStarted: =>
+      $(document).on('mousemove', @resizeTreeView)
+      $(document).on('mouseup', @resizeStopped)
+
+    resizeStopped: =>
+      $(document).off('mousemove', @resizeTreeView)
+      $(document).off('mouseup', @resizeStopped)
+
+    resizeTreeView: ({pageX, which}) =>
+      return @resizeStopped() unless which is 1
+
+      #if atom.config.get('tree-view.showOnRightSide')
+      #  width = @outerWidth() + @offset().left - pageX
+      #else
+      width = pageX - @offset().left
+      @width(width)
+
+    resizeToFitContent: ->
+      @width(1) # Shrink to measure the minimum width of list
+      @width(@list.outerWidth())
+
     listenForEvents: ->
+      #@list.on 'mousedown', ({target}) =>
+      #  false if target is @list[0]
+
+      @list.on 'mousedown', 'li', (e) =>
+        @confirmed($(e.target).closest('li').data('select-list-item'))
+        e.preventDefault()
+        false
+
+      @on 'dblclick', '.remote-edit-resize-handle', =>
+        @resizeToFitContent()
+
+      @on 'mousedown', '.remote-edit-resize-handle', (e) => @resizeStarted(e)
+
       @disposables.add atom.commands.add 'atom-workspace', 'filesview:open', =>
         item = @getSelectedItem()
         if item.isFile
           @openFile(item)
         else if item.isDir
           @openDirectory(item)
+
+    setItems: (@items=[]) ->
+      @message.hide()
+      return unless @items?
+
+      @list.empty()
+      if @items.length
+        for item in items
+          itemView = $(@viewForItem(item))
+          itemView.data('select-list-item', item)
+          @list.append(itemView)
+      else
+        @setError('No matches found')
+
+    setError: (message='') ->
+        @setLoading(message)
+
+    setLoading: (message='') ->
+      @message.empty().show().append("<ul class='background-message centered'><li>#{message}</li></ul>")

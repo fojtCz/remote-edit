@@ -29,7 +29,7 @@ module.exports =
               @span outlet: 'server_folder', 'unknown'
 
           @div class: 'remote-edit-scroller', outlet: 'scroller', =>
-            @ol class: 'tree-view full-menu list-tree has-collapsable-children focusable-panel', tabindex: -1, outlet: 'list'
+            @ol class: 'tree-view full-menu list-tree focusable-panel', tabindex: -1, outlet: 'list'
           @div class: 'remote-edit-message', outlet: 'message'
         @div class: 'remote-edit-resize-handle', outlet: 'resizeHandle'
 
@@ -119,7 +119,7 @@ module.exports =
             @div class: 'primary-line icon icon-file-directory', item.name
           else if item.isLink
             @div class: 'primary-line icon icon-file-symlink-file', item.name
-          @div class: 'secondary-line no-icon text-subtle', "S: #{item.size}, M: #{item.lastModified}, P: #{item.permissions}"
+          @div class: 'secondary-line no-icon text-subtle text-smaller', "S: #{item.size}, M: #{item.lastModified}, P: #{item.permissions}"
 
     populate: (callback) ->
       async.waterfall([

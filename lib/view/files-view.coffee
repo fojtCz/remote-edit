@@ -34,13 +34,11 @@ module.exports =
         @div class: 'remote-edit-resize-handle', outlet: 'resizeHandle'
 
     initialize: (@host) ->
-      @addClass('filesview')
-
       @disposables = new CompositeDisposable
       @listenForEvents()
 
-    connect: (connectionOptions = {}) ->
-      @path = if atom.config.get('remote-edit.rememberLastOpenDirectory') and @host.lastOpenDirectory? then @host.lastOpenDirectory else @host.directory
+    connect: (connectionOptions = {}, connect_path = false) ->
+      @path = if connect_path then connect_path else if atom.config.get('remote-edit.rememberLastOpenDirectory') and @host.lastOpenDirectory? then @host.lastOpenDirectory else @host.directory
       async.waterfall([
         (callback) =>
           if @host.usePassword and !connectionOptions.password?
@@ -121,9 +119,7 @@ module.exports =
             @div class: 'primary-line icon icon-file-directory', item.name
           else if item.isLink
             @div class: 'primary-line icon icon-file-symlink-file', item.name
-
           @div class: 'secondary-line no-icon text-subtle', "S: #{item.size}, M: #{item.lastModified}, P: #{item.permissions}"
-
 
     populate: (callback) ->
       async.waterfall([
@@ -208,25 +204,35 @@ module.exports =
       throw new Error("Not implemented yet!")
 
     confirmed: (item) ->
-      if item.isFile
-        @openFile(item)
-      else if item.isDir
-        @setItems()
-        @updatePath(item.name)
-        @host.lastOpenDirectory = item.path
-        @host.invalidate()
-        @populate()
-      else if item.isLink
-        if atom.config.get('remote-edit.followLinks')
-          @filterEditorView.setText('')
-          @setItems()
-          @updatePath(item.name)
-          @populate()
-        else
-          @openFile(item)
-
-      else
-        @setError("Selected item is neither a file, directory or link!")
+      async.waterfall([
+        (callback) =>
+          if !@host.isConnected()
+            dir = if item.isFile then item.dirName else item.path
+            @connect({}, dir)
+          else
+            callback(null)
+        (callback) =>
+          if item.isFile
+            @openFile(item)
+          else if item.isDir
+            @setItems()
+            @updatePath(item.name)
+            @host.lastOpenDirectory = item.path
+            @host.invalidate()
+            @populate()
+          else if item.isLink
+            if atom.config.get('remote-edit.followLinks')
+              @filterEditorView.setText('')
+              @setItems()
+              @updatePath(item.name)
+              @populate()
+            else
+              @openFile(item)
+          else
+            @setError("Selected item is neither a file, directory or link!")
+      ], (err, savePath) ->
+        callback(err, savePath)
+      )
 
     clickInfo: (event, element) ->
       #console.log event

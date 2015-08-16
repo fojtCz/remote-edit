@@ -264,9 +264,10 @@ module.exports =
       #  false if target is @list[0]
 
       @list.on 'mousedown', 'li', (e) =>
-        @confirmed($(e.target).closest('li').data('select-list-item'))
-        e.preventDefault()
-        false
+        if(e.which == 1)
+          @confirmed($(e.target).closest('li').data('select-list-item'))
+          e.preventDefault()
+          false
 
       @on 'dblclick', '.remote-edit-resize-handle', =>
         @resizeToFitContent()

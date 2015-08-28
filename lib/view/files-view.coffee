@@ -119,7 +119,8 @@ module.exports =
             @div class: 'primary-line icon icon-file-directory', item.name
           else if item.isLink
             @div class: 'primary-line icon icon-file-symlink-file', item.name
-          @div class: 'secondary-line no-icon text-subtle text-smaller', "S: #{item.size}, M: #{item.lastModified}, P: #{item.permissions}"
+          if item.name != '..'
+            @div class: 'secondary-line no-icon text-subtle text-smaller', "S: #{item.size}, M: #{item.lastModified}, P: #{item.permissions}"
 
     populate: (callback) ->
       async.waterfall([

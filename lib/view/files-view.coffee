@@ -142,14 +142,8 @@ module.exports =
       super
       @setError path.resolve @path
 
-    getNewPath: (next) ->
-      if (@path[@path.length - 1] == "/")
-        @path + next
-      else
-        @path + "/" + next
-
     updatePath: (next) =>
-      @path = @getNewPath(next)
+      @path = next
       @server_folder.html(@path)
 
     getDefaultSaveDirForHostAndFile: (file, callback) ->
@@ -217,7 +211,7 @@ module.exports =
             @openFile(item)
           else if item.isDir
             @setItems()
-            @updatePath(item.name)
+            @updatePath(item.path)
             @host.lastOpenDirectory = item.path
             @host.invalidate()
             @populate()
@@ -225,7 +219,7 @@ module.exports =
             if atom.config.get('remote-edit.followLinks')
               @filterEditorView.setText('')
               @setItems()
-              @updatePath(item.name)
+              @updatePath(item.path+'/'+item.name)
               @populate()
             else
               @openFile(item)

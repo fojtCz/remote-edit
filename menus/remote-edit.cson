@@ -9,7 +9,13 @@
         { 'label': 'Browse Hosts', 'command': 'remote-edit:browse' }
         { 'label': 'Add New Host (sftp)', 'command': 'remote-edit:new-host-sftp' }
         { 'label': 'Add New Host (ftp)', 'command': 'remote-edit:new-host-ftp' }
+        { 'label': 'Toggle files view', 'command': 'remote-edit:toggle-files-view' }
     ]
     ]
   }
 ]
+'context-menu':
+   '.remote-edit-tree-view': [
+      label: 'Toggle files view'
+      command: 'remote-edit:toggle-files-view'
+   ]

@@ -29,7 +29,7 @@ module.exports =
               @span outlet: 'server_folder', 'unknown'
 
           @div class: 'remote-edit-scroller', outlet: 'scroller', =>
-            @ol class: 'tree-view full-menu list-tree focusable-panel', tabindex: -1, outlet: 'list'
+            @ol class: 'list-tree full-menu focusable-panel', tabindex: -1, outlet: 'list'
           @div class: 'remote-edit-message', outlet: 'message'
         @div class: 'remote-edit-resize-handle', outlet: 'resizeHandle'
 
@@ -100,12 +100,13 @@ module.exports =
 
     toggle: ->
       if @panel?.isVisible()
-        @cancel()
+        @hide()
       else
         @show()
 
     show: ->
       @panel ?= atom.workspace.addLeftPanel(item: this, visible: true)
+      @panel?.show()
 
     hide: ->
       @panel?.hide()
